@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <style>
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+        #scanning-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; z-index: 10; }
+        #scanning-overlay.hidden { display: none; }
+        .scanline { width: 80%; height: 3px; background: #0f0; margin-bottom: 20px; animation: scan 2s infinite linear; box-shadow: 0 0 10px #0f0; }
+        @keyframes scan { 0% { transform: translateY(-15px); } 50% { transform: translateY(15px); } 100% { transform: translateY(-15px); } }
+        #error-message { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: rgba(255, 0, 0, 0.8); color: white; padding: 10px; border-radius: 5px; z-index: 20; display: none; }
+    </style>
+</head>
+<body>
+    <div id="scanning-overlay">
+        <div class="scanline"></div>
+        <p>正在啟動 AR 掃描器...</p>
+        <p style="font-size: 0.8em; margin-top: 10px;">請允許攝影機權限。如果長時間無反應，請檢查瀏覽器 Console。</p>
+    </div>
+    <div id="error-message"></div>
+
+    <a-scene id="ar-scene"
+             mindar-image="imageTargetSrc: https://sylvia111702030.github.io/mindar-assets/targets.mind; uiScanning: #scanning-overlay;"
+             color-space="sRGB"
+             renderer="colorManagement: true, physicallyCorrectLights"
+             vr-mode-ui="enabled: false"
+             device-orientation-permission-ui="enabled: false"
+             embedded>
+        <a-assets></a-assets>
+        <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;" near="0.001"></a-camera>
+
+        <a-entity mindar-image-target="targetIndex: 0"></a-entity>
+        <a-entity mindar-image-target="targetIndex: 1"></a-entity>
+        <a-entity mindar-image-target="targetIndex: 2"></a-entity>
+        <a-entity mindar-image-target="targetIndex: 3"></a-entity>
+        <a-entity mindar-image-target="targetIndex: 4"></a-entity>
+    </a-scene>
+
+    <script>
+    window.addEventListener('load', () => {
+      const sceneEl = document.querySelector('#ar-scene');
+      const scanningOverlay = document.getElementById('scanning-overlay');
+      const errorMessageDiv = document.getElementById('error-message');
+
+      const cardNamesInMindAR = ["社交模擬機", "重型作業機", "秘密偵察機", "數據分析機", "簡訊回覆機"];
+
+      function showError(message) {
+        console.error(message);
+        errorMessageDiv.textContent = message;
+        errorMessageDiv.style.display = 'block';
+      }
+
+      sceneEl.addEventListener('arReady', () => {
+        console.log('✅ MindAR Ready');
+        scanningOverlay.classList.add('hidden');
+      });
+
+      sceneEl.addEventListener('arError', (event) => {
+        const msg = event.detail?.error || '未知錯誤';
+        showError(`MindAR 錯誤: ${msg}`);
+      });
+
+      sceneEl.addEventListener('targetFound', event => {
+        console.log('📦 Raw event.detail:', event.detail);
+        if (!event.detail) {
+          showError('❗ event.detail 為 null，請檢查 .mind 檔與掃描圖像。');
+          return;
+        }
+
+        const index = event.detail.targetIndex;
+        const name = event.detail.name;
+
+        if (typeof index === 'number' && index < cardNamesInMindAR.length) {
+          console.log(`✔ 掃到：${cardNamesInMindAR[index]} (index ${index})`);
+        } else {
+          showError('❗ 辨識到未知卡片或索引超出範圍。');
+        }
+      });
+
+      sceneEl.addEventListener('targetLost', event => {
+        const lostIndex = event.detail?.targetIndex;
+        console.log(`📦 Target Lost - Index: ${typeof lostIndex !== 'undefined' ? lostIndex : '未提供'}`);
+      });
+    });
+    </script>
+</body>
+</html>
